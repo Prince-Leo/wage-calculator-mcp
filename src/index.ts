@@ -42,16 +42,16 @@ const isValidWageArgs = (args: any): args is WageCalculationArgs =>
   (args.overtime_rate === undefined || typeof args.overtime_rate === 'number') &&
   (args.bonus === undefined || (typeof args.bonus === 'number' && args.bonus >= 0));
 
-//个税税率表（修改版累进税率）
+//个税税率表（速算扣除法）
 function calculateIndividualIncomeTax(taxableIncome: number): number {
   if (taxableIncome <= 0) return 0;
   if (taxableIncome <= 3000) return taxableIncome * 0.03;
-  if (taxableIncome <= 12000) return 3000 * 0.03 + (taxableIncome - 3000) * 0.10;
-  if (taxableIncome <= 25000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (taxableIncome - 12000) * 0.20;
-  if (taxableIncome <= 35000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (taxableIncome - 25000) * 0.25;
-  if (taxableIncome <= 55000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (taxableIncome - 35000) * 0.30;
-  if (taxableIncome <= 80000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (55000 - 35000) * 0.30 + (taxableIncome - 55000) * 0.35;
-  return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (55000 - 35000) * 0.30 + (80000 - 55000) * 0.35 + (taxableIncome - 80000) * 0.45;
+  if (taxableIncome <= 12000) return taxableIncome * 0.10 - 210;
+  if (taxableIncome <= 25000) return taxableIncome * 0.20 - 1410;
+  if (taxableIncome <= 35000) return taxableIncome * 0.25 - 2660;
+  if (taxableIncome <= 55000) return taxableIncome * 0.30 - 4410;
+  if (taxableIncome <= 80000) return taxableIncome * 0.35 - 7160;
+  return taxableIncome * 0.45 - 15160;
 }
 
 function calculateSocialInsurance(base: number) {
