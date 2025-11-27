@@ -156,7 +156,9 @@ class WageCalculatorServer {
       const bonus = args.bonus ?? DEFAULT_VALUES.bonus;
 
       //总月工资 = 基本工资 + 加班费 + 奖金
-      const totalMonthlySalary = baseSalary + (overtimeHours * (baseSalary / 21.75) * overtimeRate) + bonus;
+      const hourlyRate = baseSalary / (20 * 8); // 每月20工作日，每天8小时
+      const overtimePayAmount = overtimeHours * hourlyRate * overtimeRate;
+      const totalMonthlySalary = baseSalary + overtimePayAmount + bonus;
 
       //五险一金缴费基数（简化版：假设等于基本工资）
       const insuranceBase = baseSalary;
@@ -201,7 +203,7 @@ class WageCalculatorServer {
       const result = {
         //工资构成
         basic: baseSalary,
-        overtime_pay: overtimeHours * (baseSalary / 21.75) * overtimeRate,
+        overtime_pay: overtimePayAmount,
         bonus: bonus,
         total_monthly_salary: totalMonthlySalary,
 
