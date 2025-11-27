@@ -33,17 +33,13 @@ class WageCalculatorServer {
   private server: Server;
 
   constructor() {
-    this.server = new Server(
-      {
-        name: 'wage-calculator-server',
-        version: '0.1.0',
+    this.server = new Server({
+      name: 'wage-calculator-server',
+      version: '0.1.0',
+      capabilities: {
+        tools: {},
       },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+    });
 
     this.setupToolHandlers();
 
