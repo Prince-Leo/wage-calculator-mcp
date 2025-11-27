@@ -167,8 +167,8 @@ class WageCalculatorServer {
       //Company社保公积金总缴费率31.56%
       const companyInsuranceTotal = insuranceBase * 0.3156;
 
-      //税前工资 = 月工资 - Personal五险一金
-      const preTaxSalary = totalMonthlySalary - personalInsuranceTotal;
+      //税前工资 = 月工资（包含五险一金）
+      const preTaxSalary = totalMonthlySalary;
 
       //应纳税所得额 = 税前工资 - 五险一金个人部分 - 5000免税额
       const taxableIncome = preTaxSalary - personalInsuranceTotal - 5000;
@@ -205,7 +205,7 @@ class WageCalculatorServer {
         bonus: bonus,
         total_monthly_salary: totalMonthlySalary,
 
-        //税前工资（扣除个人五险一金后的金额）
+        //税前工资（月工资总额，包含五险一金）
         pre_tax_salary: preTaxSalary,
 
         //社保公积金缴费
