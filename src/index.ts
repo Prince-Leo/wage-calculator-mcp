@@ -44,16 +44,15 @@ const isValidWageArgs = (args: any): args is WageCalculationArgs =>
 
 //中国个税税率表2024（月度计算）
 function calculateIndividualIncomeTax(monthlyIncome: number): number {
-  const thresholds = [0, 5000, 10000, 20000, 40000, 60000, 100000];
-  const rates = [0, 0.03, 0.1, 0.15, 0.2, 0.25, 0.3];
-  const quickDeductions = [0, 0, 210, 1410, 2660, 4410, 8330];
-
-  for (let i = thresholds.length - 1; i >= 0; i--) {
-    if (monthlyIncome > thresholds[i]) {
-      return monthlyIncome * rates[i] - quickDeductions[i];
-    }
-  }
-  return 0;
+  const Y = monthlyIncome - 5000; // 免税额后的应纳税所得额
+  if (Y <= 0) return 0;
+  if (Y <= 5000) return Y * 0.03;
+  if (Y <= 12000) return Y * 0.1 - 210;
+  if (Y <= 25000) return Y * 0.15 - 1410;
+  if (Y <= 35000) return Y * 0.2 - 2660;
+  if (Y <= 55000) return Y * 0.25 - 4410;
+  if (Y <= 80000) return Y * 0.3 - 7160;
+  return Y * 0.35 - 15160;
 }
 
 function calculateSocialInsurance(base: number) {
@@ -157,47 +156,70 @@ class WageCalculatorServer {
       const overtimeRate = args.overtime_rate ?? DEFAULT_VALUES.overtime_rate;
       const bonus = args.bonus ?? DEFAULT_VALUES.bonus;
 
-      //确保社保公积金基数不超过上年平均工资的300%，不低于60%
-      const insuranceBase = Math.min(Math.max(baseSalary, BASE_SOCIAL_INSURANCE * 0.6), BASE_SOCIAL_INSURANCE * 3);
+      //总月工资 = 基本工资 + 加班费 + 奖金
+      const totalMonthlySalary = baseSalary + (overtimeHours * (baseSalary / 21.75) * overtimeRate) + bonus;
 
-      //计算社保公积金
-      const socialInsurance = calculateSocialInsurance(insuranceBase);
+      //五险一金缴费基数（简化版：假设等于基本工资）
+      const insuranceBase = baseSalary;
 
-      //计算月度应纳税所得额（基本工资 + 加班费 - 社保个人部分 - 公积金个人部分 - 5000免税额）
-      const monthlyTaxableIncome = baseSalary + (overtimeHours * (baseSalary / 21.75) * overtimeRate) - socialInsurance.personalTotal - 5000;
+      //Personal社保公积金总缴费率16.4%
+      const personalInsuranceTotal = insuranceBase * 0.164;
+
+      //Company社保公积金总缴费率31.56%
+      const companyInsuranceTotal = insuranceBase * 0.3156;
+
+      //税前工资 = 月工资 - Personal五险一金
+      const preTaxSalary = totalMonthlySalary - personalInsuranceTotal;
+
+      //应纳税所得额 = 税前工资 - 5000免税额
+      const taxableIncome = preTaxSalary - 5000;
 
       //计算个税
-      const incomeTax = monthlyTaxableIncome > 0 ? calculateIndividualIncomeTax(monthlyTaxableIncome) : 0;
+      const incomeTax = taxableIncome > 0 ? calculateIndividualIncomeTax(preTaxSalary) : 0;
 
-      //计算实发工资
-      const netSalary = baseSalary + (overtimeHours * (baseSalary / 21.75) * overtimeRate) + bonus - socialInsurance.personalTotal - incomeTax;
+      //实发工资 = 税前工资 - 个税
+      const netSalary = preTaxSalary - incomeTax;
+
+      //社保公积金明细（按照比例分配给各个险种，以符合用户理解）
+      const personalInsurance = {
+        pension: insuranceBase * 0.08,
+        unemployment: insuranceBase * 0.004,
+        injury: insuranceBase * 0,
+        medical: insuranceBase * 0.02,
+        housing_fund: insuranceBase * 0.06,
+        total_personal: personalInsuranceTotal
+      };
+
+      const companyInsurance = {
+        pension: insuranceBase * 0.16,
+        unemployment: insuranceBase * 0.006,
+        injury: insuranceBase * 0.0156,
+        medical: insuranceBase * 0.07,
+        housing_fund: insuranceBase * 0.06,
+        total_company: companyInsuranceTotal
+      };
 
       const result = {
         //工资构成
         basic: baseSalary,
         overtime_pay: overtimeHours * (baseSalary / 21.75) * overtimeRate,
         bonus: bonus,
+        total_monthly_salary: totalMonthlySalary,
 
-        //社保公积金明细（个人）
-        social_insurance_personal: {
-          pension: socialInsurance.details.pension.personal,
-          unemployment: socialInsurance.details.unemployment.personal,
-          medical: socialInsurance.details.medical.personal,
-          housing_fund: socialInsurance.details.housingFund.personal,
-          total_personal: socialInsurance.personalTotal
-        },
+        //税前工资（扣除个人五险一金后的金额）
+        pre_tax_salary: preTaxSalary,
 
-        //企业承担的社保公积金
-        company_social_insurance_total: socialInsurance.companyTotal,
+        //社保公积金缴费
+        insurance_base: insuranceBase,
+        personal_insurance: personalInsurance,
+        company_insurance: companyInsurance,
 
-        //税费
+        //个税计算
+        taxable_income: taxableIncome,
         individual_income_tax: incomeTax,
 
-        //最终实发
-        net_salary: netSalary,
-
-        //调试信息
-        taxable_income: monthlyTaxableIncome,
+        //最终实发工资
+        net_salary: netSalary
       };
 
       return {
