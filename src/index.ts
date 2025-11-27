@@ -176,8 +176,8 @@ class WageCalculatorServer {
       //计算个税
       const incomeTax = taxableIncome > 0 ? calculateIndividualIncomeTax(taxableIncome) : 0;
 
-      //实发工资 = 税前工资 - 个税
-      const netSalary = preTaxSalary - incomeTax;
+      //实发工资 = 税前工资 - 五险一金个人部分 - 个税
+      const netSalary = preTaxSalary - personalInsuranceTotal - incomeTax;
 
       //社保公积金明细（按照比例分配给各个险种，以符合用户理解）
       const personalInsurance = {
