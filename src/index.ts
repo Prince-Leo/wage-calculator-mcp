@@ -42,17 +42,16 @@ const isValidWageArgs = (args: any): args is WageCalculationArgs =>
   (args.overtime_rate === undefined || typeof args.overtime_rate === 'number') &&
   (args.bonus === undefined || (typeof args.bonus === 'number' && args.bonus >= 0));
 
-//中国个税税率表2024（月度计算）
-function calculateIndividualIncomeTax(monthlyIncome: number): number {
-  const Y = monthlyIncome - 5000; // 免税额后的应纳税所得额
-  if (Y <= 0) return 0;
-  if (Y <= 5000) return Y * 0.03;
-  if (Y <= 12000) return Y * 0.1 - 210;
-  if (Y <= 25000) return Y * 0.15 - 1410;
-  if (Y <= 35000) return Y * 0.2 - 2660;
-  if (Y <= 55000) return Y * 0.25 - 4410;
-  if (Y <= 80000) return Y * 0.3 - 7160;
-  return Y * 0.35 - 15160;
+//个税税率表（修改版累进税率）
+function calculateIndividualIncomeTax(taxableIncome: number): number {
+  if (taxableIncome <= 0) return 0;
+  if (taxableIncome <= 3000) return taxableIncome * 0.03;
+  if (taxableIncome <= 12000) return 3000 * 0.03 + (taxableIncome - 3000) * 0.10;
+  if (taxableIncome <= 25000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (taxableIncome - 12000) * 0.20;
+  if (taxableIncome <= 35000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (taxableIncome - 25000) * 0.25;
+  if (taxableIncome <= 55000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (taxableIncome - 35000) * 0.30;
+  if (taxableIncome <= 80000) return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (55000 - 35000) * 0.30 + (taxableIncome - 55000) * 0.35;
+  return 3000 * 0.03 + (12000 - 3000) * 0.10 + (25000 - 12000) * 0.20 + (35000 - 25000) * 0.25 + (55000 - 35000) * 0.30 + (80000 - 55000) * 0.35 + (taxableIncome - 80000) * 0.45;
 }
 
 function calculateSocialInsurance(base: number) {
@@ -171,11 +170,11 @@ class WageCalculatorServer {
       //税前工资 = 月工资 - Personal五险一金
       const preTaxSalary = totalMonthlySalary - personalInsuranceTotal;
 
-      //应纳税所得额 = 税前工资 - 5000免税额
-      const taxableIncome = preTaxSalary - 5000;
+      //应纳税所得额 = 税前工资 - 五险一金个人部分 - 5000免税额
+      const taxableIncome = preTaxSalary - personalInsuranceTotal - 5000;
 
       //计算个税
-      const incomeTax = taxableIncome > 0 ? calculateIndividualIncomeTax(preTaxSalary) : 0;
+      const incomeTax = taxableIncome > 0 ? calculateIndividualIncomeTax(taxableIncome) : 0;
 
       //实发工资 = 税前工资 - 个税
       const netSalary = preTaxSalary - incomeTax;
